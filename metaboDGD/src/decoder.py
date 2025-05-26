@@ -1,5 +1,11 @@
 import torch.nn as nn
 
+## TODO: To figure out final distribution for metabolite abundance
+class LogNormalLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+
 class Decoder(nn.Module):
     def __init__(
         self,
@@ -10,7 +16,7 @@ class Decoder(nn.Module):
         output_prediction_type="mean",
         output_activation_type="softplus"
     ):
-        super(Decoder, self).__init__()
+        super().__init__()
 
         self.nn = nn.ModuleList()
 
