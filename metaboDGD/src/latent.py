@@ -1,14 +1,108 @@
 import torch
+import math
 import torch.nn as nn
+from metaboDGD.src.prior import SoftballPrior, GaussianPrior
 
-## TODO: Add Gaussian and Softball prior classes
 class GaussianMixtureModel(nn.Module):
-    def __init__(self):
+    def __init__(
+            self,
+            latent_dim,
+            n_comp,
+            cm_type='diagonal'
+        ):
         super().__init__()
 
+        self.dim = latent_dim
+        self.n_comp = n_comp
+        self.cm_type=cm_type
+
+        self.means_prior = {
+            'dist': SoftballPrior(
+                latent_dim=self.dim,
+                radius=7,
+                sharpness=10
+            )
+        }
+
+        self.log_var_prior = {
+            'dist': GaussianPrior(
+                latent_dim=self.dim,
+                mean=-2 * math.log(0.1),
+                stddev=1.0
+            )
+        }
+
+        self.log_var  = nn.Parameter(
+                            torch.empty(self.n_comp, self.dim),
+                            requires_grad=True
+                        )
+        
+        self.means    = nn.Parameter(
+                           self.means_prior.sample(n_sample=self.n_comp),
+                           requires_grad=True
+                        )
+        
+        self.weights  = nn.Parameter(
+                            torch.ones(self.n_comp),
+                            requires_grad=True
+                        )
+
+
+    def get_log_prob_comp(self, x):
+        pi_term = - 0.5 * self.dim * math.log(2 * math.pi)
+
+        ## Temporarily set log_var_prior factor for diagonal covariance matrices
+        log_var_prior = 0.5
+        cm_dependent_term = - (log_var_prior * self.log_var.sum(-1))
+
+        mean_term = -(x.unsqueeze(-2) - self.means).square().div(\
+                    2 * torch.exp(self.log_var)).sum(-1)
+        
+        log_prob = pi_term + cm_dependent_term + mean_term
+
+        log_prob += torch.log_softmax(self.weights, dim=0)
+
+        return log_prob
+
+
+    def get_mixture_probs(self):
+        return torch.softmax(self.weights, dim=-1)
+
+
+    def get_prior_log_prob(self):
+        p = 0.0
+
+        ## Assume weights prior is Dirichlet (add alpha, constant)
+        alpha = 5
+        p = math.lgamma(self.n_comp * alpha) - \
+            self.n_comp * math.lgamma(alpha)
+        
+        if alpha != 1:
+            p += (alpha - 1.0) * (self.get_mixture_probs().log().sum())
+        
+
+        ## Assume means prior is Softball
+        p += self.means_prior['dist'].log_prob(self.means).sum()
+
+        ## Assume logvar prior is Gaussian
+        p += self.log_var_prior['dist'].log_prob(self.log_var).sum()
+
+        return p
+
+    # Negative Log Probability
+    def forward(self, x):
+        y = self.get_log_prob_comp(x)
+
+        y = torch.logsumexp(y, dim=-1)
+
+        y += self.get_prior_log_prob()
+
+        return -y
     
-    def forward(self, z):
-        pass
+    def get_mixture_probs(self):
+        return torch.softmax(self.weights, dim=-1)
+
+
 
 class RepresentationLayer(nn.Module):
     def __init__(
