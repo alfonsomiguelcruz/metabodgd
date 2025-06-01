@@ -40,9 +40,9 @@ def construct_training_dataframe(met_list_all, sample_list_all, cohorts):
 def combine_cohort_datasets():
     cohorts = {
         "BRCA1": None,
-        "COAD": None,
         "ccRCC3": None,
         "ccRCC4": None,
+        "COAD": None,
         "GBM": None,
         "HurthleCC": None,
         "PDAC": None,

@@ -1,4 +1,6 @@
 import torch
+from metaboDGD.src.decoder import Decoder
+from metaboDGD.src.latent  import GaussianMixtureModel
 
 class MetaboDGD():
     # TODO:
@@ -7,5 +9,5 @@ class MetaboDGD():
     def __init__ (self):
         super(MetaboDGD, self).__init__()
 
-        self.dec = None
-        self.gmm = None
+        self.dec = Decoder()
+        self.gmm = GaussianMixtureModel()
