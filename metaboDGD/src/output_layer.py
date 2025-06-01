@@ -39,7 +39,7 @@ class LogNormalLayer(nn.Module):
 
 
 
-class HurdleLogNormalLayer(nn.Module):
+class HurdleGammaLayer(nn.Module):
     def __init__(
         self,
         output_dim,

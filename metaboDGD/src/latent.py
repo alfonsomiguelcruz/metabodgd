@@ -32,13 +32,14 @@ class GaussianMixtureModel(nn.Module):
             )
         }
 
+        # self.logbeta.fill_(-2 * math.log(self.sd_init[0]))
         self.log_var  = nn.Parameter(
-                            torch.empty(self.n_comp, self.dim),
+                            torch.full(size=(self.n_comp, self.dim), fill_value=0.1),
                             requires_grad=True
                         )
         
         self.means    = nn.Parameter(
-                           self.means_prior.sample(n_sample=self.n_comp),
+                           self.means_prior['dist'].sample(n_sample=self.n_comp),
                            requires_grad=True
                         )
         
@@ -57,9 +58,9 @@ class GaussianMixtureModel(nn.Module):
 
         mean_term = -(x.unsqueeze(-2) - self.means).square().div(\
                     2 * torch.exp(self.log_var)).sum(-1)
-        
-        log_prob = pi_term + cm_dependent_term + mean_term
 
+        log_prob = pi_term + cm_dependent_term + mean_term
+ 
         log_prob += torch.log_softmax(self.weights, dim=0)
 
         return log_prob
@@ -95,7 +96,7 @@ class GaussianMixtureModel(nn.Module):
 
         y = torch.logsumexp(y, dim=-1)
 
-        y += self.get_prior_log_prob()
+        y = y + self.get_prior_log_prob()
 
         return -y
     
