@@ -94,7 +94,6 @@ def train_dgd(
     best_gmm_cluster = 0
 
     for e in range(n_epochs):
-        print(e)
         # if lr_schedule_epochs is not None:
         #     if e in lr_schedule_epochs:
         #         lr_idx = 
@@ -114,21 +113,25 @@ def train_dgd(
             gmm_optimizer.zero_grad()
             dec_optimizer.zero_grad()
 
-            with torch.autograd.set_detect_anomaly(True):
-                x = x.to(device)
-                # print(f"X SHAPE: {x.shape}")
-                z = train_rep(i)
-                # print(f"Z SHAPE: {z.shape}")       
-                y = dgd_model.dec(z)
-                # print(f"Y SHAPE: {y.shape}")
-                recon_loss = dgd_model.dec.gamma_layer.loss(x, y).sum()
-                # print(recon_loss)
-                dist_loss  = -dgd_model.gmm(z).sum()
-                # print(dist_loss)
-                loss = recon_loss.clone() + dist_loss.clone()
-            
-                loss.backward()
+            # with torch.autograd.set_detect_anomaly(True):
+            x = x.to(device)
+            # print(f"X SHAPE: {x.shape}")
+            z = train_rep(i)
+            # print(f"Z SHAPE: {z.shape}")       
+            y = dgd_model.dec(z)
+            # print(f"Y SHAPE: {y.shape}")
+            recon_loss = dgd_model.dec.normal_layer.loss(x, y).sum()
+            # print(recon_loss)
+            dist_loss  = -dgd_model.gmm(z).sum()
+            # print(dist_loss)
+            loss = recon_loss.clone() + dist_loss.clone()
+
+            # print("Backpropagation Step...")
+            loss.backward()
+
+                
             # loss.backward()
+            # print("Optimizer Step...")
             gmm_optimizer.step()
             dec_optimizer.step()
 
@@ -136,6 +139,12 @@ def train_dgd(
             recon_avg[-1] += recon_loss.item() / (nsample_train * out_dim)
             dist_avg[-1]  += dist_loss.item() / (nsample_train * latent_dim)
 
+            print("-----------------------------------------")
+            print(f"TRAIN LOSS OF EPOCH {e}: {train_avg[-1]}")
+            print(f"RECON LOSS OF EPOCH {e}: {recon_avg[-1]}")
+            print(f"DISTR LOSS OF EPOCH {e}: {dist_avg[-1]}")
+            print("-----------------------------------------")
+            
         train_rep_optimizer.step()
 
         ## Validation Run
@@ -145,7 +154,7 @@ def train_dgd(
             z = train_rep(i)            
             y = dgd_model.dec(z)
 
-            recon_loss = dgd_model.dec.gamma_layer.loss(x, y).sum()
+            recon_loss = dgd_model.dec.normal_layer.loss(x, y).sum()
             dist_loss  = -dgd_model.gmm(z).sum()
             loss = recon_loss.clone() + dist_loss.clone()
             
