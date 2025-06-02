@@ -13,7 +13,7 @@ def train_dgd(
     export_dir='./',
     export_name='metaboDGD',
     lr_schedule_epochs=[0,300],
-    lr_schedule=[[1e-3,1e-2,1e-2],[1e-4,1e-2,1e-2]],
+    lr_schedule=[[1e-5,1e-4,1e-4],[1e-4,1e-2,1e-2]],
     optim_betas=[0.5,0.7],
     wd=1e-4,
     acc_save_threshold=0.5

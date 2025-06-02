@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.distributions as D
+import torch.special
 
 class HurdleGammaLayer(nn.Module):
     def __init__(
@@ -13,12 +14,12 @@ class HurdleGammaLayer(nn.Module):
         super().__init__()
         
         self.alpha_shape = nn.Parameter(
-            torch.full(fill_value=10.0, size=(1, output_dim), dtype=torch.float64),
+            torch.full(fill_value=1.0, size=(1, output_dim), dtype=torch.float64),
             requires_grad=True
         )
 
         self.lambda_rate = nn.Parameter(
-            torch.full(fill_value=0.25, size=(1, output_dim), dtype=torch.float64),
+            torch.full(fill_value=1.0, size=(1, output_dim), dtype=torch.float64),
             requires_grad=True
         )
 
@@ -51,35 +52,38 @@ class HurdleGammaLayer(nn.Module):
         p = p - self.alpha_shape * torch.log(self.alpha_shape)
         p = p + torch.log(x)
         p = p - self.alpha_shape * torch.log(x)
-        p = p + (self.alpha_shape * (x) / y)
+        p = p + (self.alpha_shape * x / y)
         p = p + torch.lgamma(self.alpha_shape)
 
         return p
 
 
     def loss(self, x, y):
-        print(f"x: {x}")
         x_zm = (x == 0)
         x_nz = ~(x_zm)
         eps = torch.full(fill_value=1e-5, size=x.shape)
         loss_vec = torch.zeros_like(x)
       
         # gamma = D.Gamma(self.alpha_shape, self.alpha_shape / y)
-        nll_zr = torch.log(self.pi).repeat(x.shape[0], 1)
+        nll_zr = torch.log((1-self.pi)).repeat(x.shape[0], 1)
         # nll_nz = torch.log((1 - self.pi)) + gamma.log_prob(x) - torch.log(1 - torch.exp(gamma.log_prob(eps)))
-     
+        # nll_nz = torch.log(self.pi) + gamma.log_prob(x) - torch.log(1 - torch.exp(gamma.log_prob(eps)))
+
         # print(f"PI: {torch.any(torch.isnan(self.pi))}")
         # print(f"X :{torch.any(torch.isnan(x))}")
         # print(f"Y :{torch.any(torch.isnan(y))}")
         # print(f"EPS:{torch.any(torch.isnan(eps))}")
-        # print(f"PI TERM: {torch.any(torch.isnan(torch.log((1 - self.pi))))}")
-        # print(f"PDF TERM: {torch.any(torch.isnan(self.logGammaDensity(x + 1e-5, y)))}")
-        # print(f"ZER TERM: {torch.any(torch.isnan(torch.log(1 - torch.exp(self.logGammaDensity(eps, y)))))}")
-        # print(f"MIN X: {torch.min(x, axis=1)}")
-        # print(f"MIN Y: {torch.min(y, axis=1)}")
+        # print(f"PI TERM: {torch.any(torch.isnan(torch.log((self.pi))))}")
+        # print(f"PDF TERM: {torch.any(torch.isnan(self.logGammaDensity(x + 1e-5, y+1e-5)))}")
+        print(f"ZER TERM: {torch.exp(self.logGammaDensity(eps, y+1e-5))}")
+        
+        print(f"LOSS_MIN X: {torch.min(x, axis=1)[0]}")
+        print(f"LOSS_MIN Y: {torch.min(y, axis=1)[0]}")
+        print(f"LOSS_MIN PI: {torch.min(self.pi)}")
         # print(self.logGammaDensity(x + 1e-5, y))
-        nll_nz = torch.log((1 - self.pi)) + self.logGammaDensity(x + 1e-5, y) #- torch.log(1 - torch.exp(self.logGammaDensity(eps, y)))
-        # print(f"NLL_NONZERO: {nll_nz}")
+        nll_nz = torch.log(self.pi) + self.logGammaDensity(x + 1e-5, y + 1e-5) #- torch.log(1 - torch.special.gammainc(self.alpha_shape, self.alpha_shape * x / y))
+
+        print(f"NLL_NZ: {nll_nz}")
         print(f"NANS_ZR: {torch.any(torch.isnan(nll_zr), dim=1, keepdim=True)}")
         print(f"NANS_NZ: {torch.any(torch.isnan(nll_nz), dim=1, keepdim=True)}")
 
@@ -126,11 +130,19 @@ class HurdleNormalLayer (nn.Module):
 
     def logGaussianDensity(self, x, y):
         p = 0.0
-        p = p + ((x-y)**2) / self.var
+
+        print("_______________________________")
+        print(f"MIN V: {torch.min(self.var)}")
+        print(f"MIN X: {torch.min(x, axis=1)[0]}")
+        print(f"MIN Y: {torch.min(y, axis=1)[0]}")
+        print("_______________________________")
+
+        p = p + ((x-y)**2).div(self.var)
         p = p + torch.log(torch.Tensor([2 * torch.pi]))
         p = p + torch.log(self.var)
-        p = p / 2
+        p = p * 0.5
 
+        print(f"p: {p}")
         return p
 
 
@@ -155,6 +167,8 @@ class HurdleNormalLayer (nn.Module):
         nll_nz = torch.log((self.pi)) + self.logGaussianDensity(x + 1e-5, y) - torch.log(1 - torch.exp(self.logGaussianDensity(eps, y)))
         # print(f"NLL_NONZERO: {nll_nz}")
         # print(f"NANS: {torch.any(torch.isnan(nll_nz), dim=1, keepdim=True)}")
+        print(f"NANS_ZR: {torch.any(torch.isnan(nll_zr), dim=1, keepdim=True)}")
+        print(f"NANS_NZ: {torch.any(torch.isnan(nll_nz), dim=1, keepdim=True)}")
 
         loss_vec[x_zm] = nll_zr[x_zm]
         loss_vec[x_nz] = nll_nz[x_nz]
