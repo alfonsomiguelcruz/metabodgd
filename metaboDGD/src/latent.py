@@ -19,8 +19,8 @@ class GaussianMixtureModel(nn.Module):
         self.means_prior = {
             'dist': SoftballPrior(
                 latent_dim=self.dim,
-                radius=7,
-                sharpness=10
+                radius=1,
+                sharpness=2
             )
         }
 
@@ -34,7 +34,8 @@ class GaussianMixtureModel(nn.Module):
 
         # self.logbeta.fill_(-2 * math.log(self.sd_init[0]))
         self.log_var  = nn.Parameter(
-                            torch.full(size=(self.n_comp, self.dim), fill_value=0.1),
+                            torch.full(size=(self.n_comp, self.dim),
+                                       fill_value=(0.2 * self.means_prior['dist'].radius * (self.n_comp ** -1))),
                             requires_grad=True
                         )
         
@@ -74,7 +75,7 @@ class GaussianMixtureModel(nn.Module):
         p = 0.0
 
         ## Assume weights prior is Dirichlet (add alpha, constant)
-        alpha = 5
+        alpha = 1
         p = math.lgamma(self.n_comp * alpha) - \
             self.n_comp * math.lgamma(alpha)
         
@@ -98,7 +99,7 @@ class GaussianMixtureModel(nn.Module):
 
         y = y + self.get_prior_log_prob()
 
-        return -y
+        return y
     
     def get_mixture_probs(self):
         return torch.softmax(self.weights, dim=-1)

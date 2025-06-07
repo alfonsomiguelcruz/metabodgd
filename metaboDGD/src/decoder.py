@@ -102,8 +102,8 @@ class HurdleNormalLayer (nn.Module):
     ):
         super().__init__()
         
-        self.var = nn.Parameter(
-            torch.full(fill_value=0.5, size=(1, output_dim), dtype=torch.float64),
+        self.std = nn.Parameter(
+            torch.full(fill_value=1.0, size=(1, output_dim), dtype=torch.float64),
             requires_grad=True
         )
 
@@ -152,6 +152,11 @@ class HurdleNormalLayer (nn.Module):
         eps = torch.full(fill_value=1e-5, size=x.shape)
         loss_vec = torch.zeros_like(x)
         
+        normal = D.Normal(loc=y+1e-5, scale=self.std)
+        nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
+        nll_nz = torch.log(self.pi) + normal.log_prob(x+1e-5) - torch.log(1 - normal.cdf(eps))
+        # nll_nz = torch.log((self.pi)) + self.logGaussianDensity(x + 1e-5, y + 1e-5) - torch.log(1 - torch.exp(self.logGaussianDensity(eps, y)))
+        
         # print(f"PI: {torch.any(torch.isnan(self.pi))}")
         # print(f"X :{torch.any(torch.isnan(x))}")
         # print(f"Y :{torch.any(torch.isnan(y))}")
@@ -163,8 +168,6 @@ class HurdleNormalLayer (nn.Module):
         # print(f"MIN Y: {torch.min(y, axis=1)}")
 
         # print(self.logGammaDensity(x + 1e-5, y))
-        nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
-        nll_nz = torch.log((self.pi)) + self.logGaussianDensity(x + 1e-5, y) - torch.log(1 - torch.exp(self.logGaussianDensity(eps, y)))
         # print(f"NLL_NONZERO: {nll_nz}")
         # print(f"NANS: {torch.any(torch.isnan(nll_nz), dim=1, keepdim=True)}")
         print(f"NANS_ZR: {torch.any(torch.isnan(nll_zr), dim=1, keepdim=True)}")
@@ -174,6 +177,54 @@ class HurdleNormalLayer (nn.Module):
         loss_vec[x_nz] = nll_nz[x_nz]
         return loss_vec
 
+
+
+
+#### FOR EXPERIMENTATION ONLY
+class HurdleLogNormalLayer (nn.Module):
+    def __init__(
+        self,
+        output_dim,
+        output_prediction_type="mean",
+        output_activation_type="leakyrelu",
+    ):
+        super().__init__()
+        
+        self.std = nn.Parameter(
+            torch.full(fill_value=1.0, size=(1, output_dim), dtype=torch.float64),
+            requires_grad=True
+        )
+
+        self.pi = nn.Parameter(
+            torch.full(fill_value=0.5, size=(1, output_dim), dtype=torch.float64),
+            requires_grad=True
+        )
+
+        self.output_prediction_type = output_prediction_type
+        self.output_activation_type = output_activation_type
+
+        ## Assume activation type is softplus
+        self.activation_layer = nn.LeakyReLU()
+
+    
+    def forward(self, x):
+        return self.activation_layer(x)
+
+
+    def loss(self, x, y):
+        x_zm = (x == 0)
+        x_nz = ~(x_zm)
+        eps = torch.full(fill_value=1e-5, size=x.shape)
+        loss_vec = torch.zeros_like(x)
+        
+        lognormal = D.LogNormal(loc=y, scale=self.std)
+        nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
+        nll_nz = torch.log(self.pi) + lognormal.log_prob(x+1e-5) - torch.log(1 - lognormal.cdf(eps))
+
+        loss_vec[x_zm] = nll_zr[x_zm]
+        loss_vec[x_nz] = nll_nz[x_nz]
+        return -loss_vec
+    
 
 
 
@@ -202,7 +253,7 @@ class Decoder(nn.Module):
                 self.nn.append(nn.ReLU(True))
 
         # TODO Figure out loss function distribution for metabolite abundance
-        self.normal_layer = HurdleGammaLayer(
+        self.normal_layer = HurdleLogNormalLayer(
             output_dim=output_layer_dim,
             output_prediction_type=output_prediction_type,
             output_activation_type=output_activation_type

@@ -27,13 +27,16 @@ def construct_training_dataframe(met_list_all, sample_list_all, cohorts):
     df = pd.DataFrame(np.zeros(shape=(len(met_list_all), len(sample_list_all))),
                       index=met_list_all,
                       columns=sample_list_all)
-    
+    df.loc['cohort'] = pd.Series([''] * len(sample_list_all), index=sample_list_all, dtype='object')
+
+
     for c in cohorts:
         met_list    = cohorts[c]['met_list']
         sample_list = cohorts[c]['sample_list']
         matrix      = cohorts[c]["matrix"]
 
         df.loc[met_list, sample_list] = matrix.loc[met_list, sample_list]
+        df.loc['cohort', sample_list] = c
         
     return df
     

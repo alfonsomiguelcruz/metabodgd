@@ -13,7 +13,7 @@ def train_dgd(
     export_dir='./',
     export_name='metaboDGD',
     lr_schedule_epochs=[0,300],
-    lr_schedule=[[1e-5,1e-4,1e-4],[1e-4,1e-2,1e-2]],
+    lr_schedule=[[1e-4,1e-3,1e-2],[1e-4,1e-2,1e-2]],
     optim_betas=[0.5,0.7],
     wd=1e-4,
     acc_save_threshold=0.5
@@ -25,7 +25,7 @@ def train_dgd(
 
     # Get information about the data
     nsample_train = len(train_loader.dataset)
-    nsample_val  = len(validation_loader.dataset)
+    nsample_val   = len(validation_loader.dataset)
 
     out_dim    = train_loader.dataset.n_metabolites
     latent_dim = dgd_model.gmm.dim
@@ -94,9 +94,29 @@ def train_dgd(
     best_gmm_cluster = 0
 
     for e in range(n_epochs):
-        # if lr_schedule_epochs is not None:
-        #     if e in lr_schedule_epochs:
-        #         lr_idx = 
+        if lr_schedule_epochs is not None:
+            if e in lr_schedule_epochs:
+                lr_idx = [x for x in range(len(lr_schedule_epochs)) \
+                          if lr_schedule_epochs[x] == e][0]
+                
+                lr_dec = lr_schedule[lr_idx][0]
+                dec_optimizer = Adam(
+                    params=dgd_model.dec.parameters(),
+                    lr=lr_dec,
+                    weight_decay=wd,
+                    betas=(optim_betas[0], optim_betas[1])
+                )
+
+                lr_rep = lr_schedule[lr_idx][1]
+
+                lr_gmm = lr_schedule[lr_idx][2]
+                gmm_optimizer = Adam(
+                    params=dgd_model.gmm.parameters(),
+                    lr=lr_gmm,
+                    weight_decay=wd,
+                    betas=(optim_betas[0], optim_betas[1])
+                )
+                
 
         train_avg.append(0)
         recon_avg.append(0)
@@ -107,51 +127,38 @@ def train_dgd(
         dist_val_avg.append(0)
 
         ## Training Run
+        dgd_model.dec.train()
         train_rep_optimizer.zero_grad()
-
         for x, i in train_loader:
             gmm_optimizer.zero_grad()
             dec_optimizer.zero_grad()
 
-            # with torch.autograd.set_detect_anomaly(True):
             x = x.to(device)
-            # print(f"X SHAPE: {x.shape}")
-            z = train_rep(i)
-            # print(f"Z SHAPE: {z.shape}")       
+            z = train_rep(i)     
             y = dgd_model.dec(z)
-            # print(f"Y SHAPE: {y.shape}")
+
             recon_loss = dgd_model.dec.normal_layer.loss(x, y).sum()
-            # print(recon_loss)
             dist_loss  = -dgd_model.gmm(z).sum()
-            # print(dist_loss)
             loss = recon_loss.clone() + dist_loss.clone()
 
-            # print("Backpropagation Step...")
             loss.backward()
-
-                
-            # loss.backward()
-            # print("Optimizer Step...")
             gmm_optimizer.step()
             dec_optimizer.step()
 
             train_avg[-1] += loss.item() / (nsample_train * out_dim)
             recon_avg[-1] += recon_loss.item() / (nsample_train * out_dim)
             dist_avg[-1]  += dist_loss.item() / (nsample_train * latent_dim)
-
-            print("-----------------------------------------")
-            print(f"TRAIN LOSS OF EPOCH {e}: {train_avg[-1]}")
-            print(f"RECON LOSS OF EPOCH {e}: {recon_avg[-1]}")
-            print(f"DISTR LOSS OF EPOCH {e}: {dist_avg[-1]}")
-            print("-----------------------------------------")
             
         train_rep_optimizer.step()
 
+        ## TODO: cluster_accuracies.append()
+
         ## Validation Run
+        dgd_model.dec.eval()
         val_rep_optimizer.zero_grad()
         for x, i in validation_loader:
             x = x.to(device)
-            z = train_rep(i)            
+            z = val_rep(i)            
             y = dgd_model.dec(z)
 
             recon_loss = dgd_model.dec.normal_layer.loss(x, y).sum()
@@ -163,6 +170,8 @@ def train_dgd(
             val_avg[-1] += loss.item() / (nsample_val * out_dim)
             recon_val_avg[-1] += recon_loss.item() / (nsample_val * out_dim)
             dist_val_avg[-1]  += dist_loss.item() / (nsample_val * latent_dim)
+        
+        val_rep_optimizer.step()
 
     history = pd.DataFrame({
         'train_loss': train_avg,
