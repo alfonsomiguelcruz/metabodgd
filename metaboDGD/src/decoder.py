@@ -191,7 +191,7 @@ class HurdleLogNormalLayer (nn.Module):
         super().__init__()
         
         self.std = nn.Parameter(
-            torch.full(fill_value=1.0, size=(1, output_dim), dtype=torch.float64),
+            torch.full(fill_value=3.0, size=(1, output_dim), dtype=torch.float64),
             requires_grad=True
         )
 
@@ -212,18 +212,42 @@ class HurdleLogNormalLayer (nn.Module):
 
 
     def loss(self, x, y):
-        x_zm = (x == 0)
-        x_nz = ~(x_zm)
-        eps = torch.full(fill_value=1e-5, size=x.shape)
-        loss_vec = torch.zeros_like(x)
+        # x_zm = (x == 0)
+        # x_nz = ~(x_zm)
+        # eps = torch.full(fill_value=1e-5, size=x.shape)
+        # loss_vec = torch.zeros_like(x)
         
-        lognormal = D.LogNormal(loc=y, scale=self.std)
-        nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
-        nll_nz = torch.log(self.pi) + lognormal.log_prob(x+1e-5) - torch.log(1 - lognormal.cdf(eps))
+        # lognormal = D.LogNormal(loc=y, scale=self.std)
+        # nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
+        # nll_nz = torch.log(self.pi) + lognormal.log_prob(x+1e-5) - torch.log(1 - lognormal.cdf(eps))
 
-        loss_vec[x_zm] = nll_zr[x_zm]
-        loss_vec[x_nz] = nll_nz[x_nz]
-        return -loss_vec
+        # if torch.any(torch.isnan(nll_zr)) or torch.any(torch.isnan(nll_nz)):
+        #     print("NAN FOUND!")
+            
+        # loss_vec[x_zm] = nll_zr[x_zm]
+        # loss_vec[x_nz] = nll_nz[x_nz]
+        # return -loss_vec
+
+        eps = torch.full(fill_value=1e-5, size=x.shape)
+
+        print('--------------------------')
+        print(self.std)
+        print(torch.any(torch.isnan(self.std)))
+        print('--------------------------')
+
+        if torch.any(torch.isnan(y)) or torch.any(torch.isnan(self.std)):
+            print("NAN FOUND! (MEAN, STD)")
+
+        normal = D.Normal(loc=y, scale=self.std)
+        nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
+        nll_nz = torch.log(self.pi) + normal.log_prob(x+1e-5) - torch.log(1 - normal.cdf(eps))
+
+        if torch.any(torch.isnan(nll_zr)) or torch.any(torch.isnan(nll_nz)):
+            print("NAN FOUND! (NLL_ZR, NLL_NZ)")
+
+        return -torch.where(x > 0, nll_nz, nll_zr)
+
+
     
 
 
@@ -245,12 +269,12 @@ class Decoder(nn.Module):
         for i in range(n_hidden_layers):
             if i == 0:
                 self.nn.append(nn.Linear(latent_layer_dim, hidden_layer_dim[i]))
-                self.nn.append(nn.ReLU(True))
+                self.nn.append(nn.LeakyReLU(True))
             elif i == n_hidden_layers - 1:
                 self.nn.append(nn.Linear(hidden_layer_dim[-1], output_layer_dim))
             else:
                 self.nn.append(nn.Linear(hidden_layer_dim[i-1], hidden_layer_dim[i]))
-                self.nn.append(nn.ReLU(True))
+                self.nn.append(nn.LeakyReLU(True))
 
         # TODO Figure out loss function distribution for metabolite abundance
         self.normal_layer = HurdleLogNormalLayer(

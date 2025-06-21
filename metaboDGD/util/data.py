@@ -88,6 +88,7 @@ def create_dataloaders(cohorts, df, batch_size):
                         train_size=0.8,
                         random_state=100)
         # plot_counts[c] = len(_train)
+        print(f'{c}: {len(_train)}')
         train_dict[c] = df.loc[_train].to_numpy()
         val_dict[c]  = df.loc[_val].to_numpy()
 

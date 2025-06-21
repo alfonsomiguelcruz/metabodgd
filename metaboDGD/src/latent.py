@@ -19,8 +19,8 @@ class GaussianMixtureModel(nn.Module):
         self.means_prior = {
             'dist': SoftballPrior(
                 latent_dim=self.dim,
-                radius=1,
-                sharpness=2
+                radius=5,
+                sharpness=3
             )
         }
 
@@ -75,7 +75,7 @@ class GaussianMixtureModel(nn.Module):
         p = 0.0
 
         ## Assume weights prior is Dirichlet (add alpha, constant)
-        alpha = 1
+        alpha = 11
         p = math.lgamma(self.n_comp * alpha) - \
             self.n_comp * math.lgamma(alpha)
         
