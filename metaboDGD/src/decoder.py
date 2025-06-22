@@ -230,11 +230,6 @@ class HurdleLogNormalLayer (nn.Module):
 
         eps = torch.full(fill_value=1e-5, size=x.shape)
 
-        print('--------------------------')
-        print(self.std)
-        print(torch.any(torch.isnan(self.std)))
-        print('--------------------------')
-
         if torch.any(torch.isnan(y)) or torch.any(torch.isnan(self.std)):
             print("NAN FOUND! (MEAN, STD)")
 

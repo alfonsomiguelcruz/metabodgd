@@ -11,16 +11,6 @@ from scipy.optimize import linear_sum_assignment
 from metaboDGD.src.latent import RepresentationLayer
 
 
-# def gmm_cluster_acc(rep, gmm, labels):
-#     le = LabelEncoder()
-#     true_labels = le.fit_transform(labels)
-
-#     clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
-#     pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
-#     # print(pred_labels.unique(return_counts=True))
-#     return adjusted_rand_score(true_labels, pred_labels)
-
-
 def gmm_cluster_acc(rep, gmm, labels):
     le = LabelEncoder()
     true_labels = le.fit_transform(labels)
@@ -28,13 +18,28 @@ def gmm_cluster_acc(rep, gmm, labels):
     clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
     pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
 
-    cm = confusion_matrix(true_labels, pred_labels)
+    _cm  = confusion_matrix(true_labels, pred_labels)
+    idxs = linear_sum_assignment(np.max(_cm) - _cm)
+    cm   = _cm[:, idxs[1]]
     
-    idxs = linear_sum_assignment(-cm + np.max(cm))
-    cm2 = cm[:, idxs[1]]
-    acc = np.trace(cm2) / np.sum(cm2)
+    return cm, adjusted_rand_score(true_labels, pred_labels)
 
-    return acc
+
+# def gmm_cluster_acc(rep, gmm, labels):
+#     le = LabelEncoder()
+#     true_labels = le.fit_transform(labels)
+
+#     clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
+#     pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
+
+#     cm = confusion_matrix(true_labels, pred_labels)
+    
+#     idxs = linear_sum_assignment(-cm + np.max(cm))
+#     cm2 = cm[:, idxs[1]]
+#     print(cm)
+#     acc = np.trace(cm2) / np.sum(cm2)
+
+#     return cm2, acc
 
 
 def train_dgd(
@@ -124,6 +129,7 @@ def train_dgd(
 
     cluster_accuracies = []
     best_gmm_cluster = 0
+    best_labels = None
 
     for e in range(n_epochs):
         if e % 20 == 0:
@@ -185,7 +191,9 @@ def train_dgd(
             
         train_rep_optimizer.step()
 
-        cluster_accuracies.append(gmm_cluster_acc(train_rep, dgd_model.gmm, train_loader.dataset.get_labels()))
+        cm2, acc = gmm_cluster_acc(train_rep, dgd_model.gmm, train_loader.dataset.get_labels())
+        cluster_accuracies.append(acc)
+        best_labels = cm2
 
         ## Validation Run
         dgd_model.dec.eval()
@@ -218,7 +226,7 @@ def train_dgd(
         'epoch': np.arange(1, n_epochs+1),
     })
 
-    return dgd_model, train_rep, val_rep, history
+    return dgd_model, train_rep, val_rep, history, best_labels
 
 
 def get_history_plot(history):

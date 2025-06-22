@@ -20,22 +20,32 @@ class GaussianMixtureModel(nn.Module):
             'dist': SoftballPrior(
                 latent_dim=self.dim,
                 radius=5,
-                sharpness=3
+                sharpness=5
             )
         }
 
+        ## BEST PERFORMANCE (-5.0, 1.0)
         self.log_var_prior = {
             'dist': GaussianPrior(
                 latent_dim=self.dim,
-                mean=-2 * math.log(0.1),
+                # mean=-2 * math.log(10),
+                # mean=-4.5,
+                mean=-5.0,
                 stddev=1.0
             )
         }
 
+        ## BEST PERFORMANCE (0.1)
         # self.logbeta.fill_(-2 * math.log(self.sd_init[0]))
         self.log_var  = nn.Parameter(
                             torch.full(size=(self.n_comp, self.dim),
-                                       fill_value=(0.2 * self.means_prior['dist'].radius * (self.n_comp ** -1))),
+                                    #    fill_value=(0.2 * self.means_prior['dist'].radius * (self.n_comp ** -1))),
+                                       fill_value=(0.2 * 0.125 * (self.n_comp ** -1))),
+                                    #    fill_value=(math.log(2.0))),
+                                    #    fill_value=(0.125)),
+                                    #    fill_value=(0.1)),
+                                    #    fill_value=(2.0)),
+                                    #    fill_value=(math.log(2.0) / self.n_comp)),
                             requires_grad=True
                         )
         
