@@ -6,12 +6,12 @@ from metaboDGD.src.dataset import MetaboliteDataset
 
 
 
-def get_cohort_samples(cohort_name):
+def get_cohort_samples(cohort_name, sample_type='Normal'):
     # Get the xls file
     xls = pd.ExcelFile(f'data/PreprocessedData_{cohort_name}.xlsx')
 
     # Get the dataframes for the preprocessed metabolomics data
-    n = xls.parse("metabo_imputed_filtered_Normal")
+    n = xls.parse(f"metabo_imputed_filtered_{sample_type}")
 
     # Get list of metabolites
     n_met_list = n["Unnamed: 0"].to_list()
@@ -45,7 +45,7 @@ def construct_training_dataframe(met_list_all, sample_list_all, cohorts):
         
     return df
     
-def combine_cohort_datasets():
+def combine_cohort_datasets(sample_type='Normal'):
     cohorts = {
         "BRCA1": None,
         "ccRCC3": None,
@@ -58,7 +58,7 @@ def combine_cohort_datasets():
     }
 
     for c in cohorts.keys():
-        cohorts[c] = get_cohort_samples(c)
+        cohorts[c] = get_cohort_samples(c, sample_type)
 
 
     met_union_set = set()

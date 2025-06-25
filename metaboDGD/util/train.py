@@ -79,14 +79,14 @@ def train_dgd(
         lr_dec, lr_rep, lr_gmm = lr_schedule[0]
     
     train_rep = RepresentationLayer(
-        latent_dim=latent_dim,
-        n_sample=nsample_train,
+        # latent_dim=latent_dim,
+        # n_sample=nsample_train,
         values=torch.zeros(size=(nsample_train, latent_dim))
     ).to(device)
 
     val_rep = RepresentationLayer(
-        latent_dim=latent_dim,
-        n_sample=nsample_val,
+        # latent_dim=latent_dim,
+        # n_sample=nsample_val,
         values=torch.zeros(size=(nsample_val, latent_dim))
     ).to(device)
 
@@ -132,7 +132,7 @@ def train_dgd(
     best_labels = None
 
     for e in range(n_epochs):
-        if e % 20 == 0:
+        if e % 50 == 0:
             print(e)
         if lr_schedule_epochs is not None:
             if e in lr_schedule_epochs:

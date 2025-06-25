@@ -31,7 +31,7 @@ class GaussianMixtureModel(nn.Module):
                 # mean=-2 * math.log(10),
                 # mean=-4.5,
                 mean=-5.0,
-                stddev=1.0
+                stddev=0.5
             )
         }
 
@@ -113,28 +113,39 @@ class GaussianMixtureModel(nn.Module):
     
     def get_mixture_probs(self):
         return torch.softmax(self.weights, dim=-1)
+    
+
+    def sample_new_points(self, n_samples):
+        with torch.no_grad():
+            sampled_points = torch.repeat_interleave(self.means.clone().detach().unsqueeze(0),
+                                                     n_samples,
+                                                     dim=0)
+        
+        return sampled_points.view(n_samples * self.n_comp, self.dim)
 
 
 
 class RepresentationLayer(nn.Module):
     def __init__(
         self,
-        latent_dim,
-        n_sample,
         values=None
     ):
         super().__init__()
 
         # If values were not provided
         if values is None:
-            self.dim = latent_dim
-            self.n_sample = n_sample
-            self.z = nn.Parameter(
-                torch.normal(0,
-                             1,
-                             size=(self.n_sample, self.dim),
-                             requires_grad=True)
-            )
+            ## TODO: TO FIX (Add yaml file for parameters)
+            # self.dim = latent_dim
+            # self.n_sample = n_sample
+            # self.z = nn.Parameter(
+            #     torch.normal(0,
+            #                  1,
+            #                  size=(self.n_sample, self.dim),
+            #                  requires_grad=True)
+            # )
+            self.dim = -1
+            self.n_sample = -1
+            self.z = -1
         # If values were provided
         else:
             self.dim = values.shape[-1]
