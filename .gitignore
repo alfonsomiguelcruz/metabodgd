@@ -3,3 +3,5 @@ metaboDGD/src/__pycache__/
 metaboDGD/util/__pycache__/
 old_normal_sample_metabolite_abundance.csv
 wandb/
+
+code_dump.ipynb
