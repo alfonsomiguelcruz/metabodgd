@@ -234,9 +234,16 @@ class HurdleLogNormalLayer (nn.Module):
         #     print("NAN FOUND! (MEAN, STD)")
 
         normal = D.Normal(loc=y, scale=self.std)
-        nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
+        # nll_zr = torch.log((1 - self.pi)).repeat(x.shape[0], 1)
+        nll_zr = torch.log((1 - self.pi)).expand_as(x)
         nll_nz = torch.log(self.pi) + normal.log_prob(x+1e-5) - torch.log(1 - normal.cdf(eps))
-
+        # print('-------------------')
+        # print(f"nll_zr: {nll_zr.shape}")
+        # print(f"nll_nz: {nll_nz.shape}")
+        # print(f"x: {x.shape}")
+        # print(f"y: {y.shape}")
+        # print('-------------------')
+        
         # if torch.any(torch.isnan(nll_zr)) or torch.any(torch.isnan(nll_nz)):
         #     print("NAN FOUND! (NLL_ZR, NLL_NZ)")
 

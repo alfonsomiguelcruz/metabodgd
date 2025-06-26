@@ -33,57 +33,68 @@ class MetaboDGD():
         )
     
 
-    def select_best_rep(self, data_loader, rep_layer):
+    def select_best_rep(dgd, data_loader, rep_layer):
         n_samples = len(data_loader.dataset)
 
-        n_comp = self.gmm.n_comp
+        n_comp = dgd.gmm.n_comp
 
-        dim = self.gmm.dim
+        dim = dgd.gmm.dim
         
-        n_metabolites = self.dec.nn[-1].out_features
+        n_metabolites = dgd.dec.nn[-1].out_features
 
         best_reps = torch.empty(size=(n_samples, dim))
 
         for x, i in data_loader:
             n_batch_size = len(i)
 
+            # n_samples * n_comp * n_rep_per_comp , dim
             z_all = rep_layer()
 
+            # n_samples , n_rep_per_comp , n_comp, dim
             z_3d = z_all.view(
                 n_samples,
                 n_comp,
                 dim
             )[i]
 
+            # n_samples_in_batch * n_comp * n_rep_per_comp , dim
             z = z_3d.view(
                 n_batch_size * n_comp,
                 dim
             )
 
-            dec_out = self.dec(z)
+            # n_samples_in_batch * n_comp * n_rep_per_comp , n_genes
+            dec_out = dgd.dec(z)
 
             # n_samples_in_batch , 1 , n_comp, n_genes
+            obs_counts = x.unsqueeze(1).expand(-1, n_comp ,-1)
+
             # n_samples_in_batch , 1 , 1 , 1
+            
+            # n_samples_in_batch , n_rep_per_comp , n_comp, n_genes
+            # n_samples_in_batch, n_comp, n_metabolites
+            pred_means = dec_out.view(n_batch_size, n_comp, n_metabolites)
 
-            dec_fin = dec_out.view(n_batch_size, n_comp, n_metabolites)
-
-            recon_loss = self.dec.normal_layer.loss(x,dec_fin)
-
+            # print(obs_counts.shape)
+            # print(pred_means.shape)
+            recon_loss = dgd.dec.normal_layer.loss(obs_counts, pred_means)
             recon_loss_sum = recon_loss.sum(-1).clone()
 
-            ## Reshape recon_loss_sum to (n_batch_size * n_comp)
+            recon_loss_sum_reshaped = recon_loss_sum.view(n_batch_size * n_comp)
 
-            gmm_loss = self.gmm(z).clone()
+            gmm_loss = dgd.gmm(z).clone()
 
             total_loss = recon_loss_sum_reshaped + gmm_loss
+            total_loss_reshaped = total_loss.view(n_batch_size, n_comp)
+            
+            best_rep_per_sample = torch.argmin(total_loss_reshaped, dim=1).squeeze(-1)
 
-            ## Reshape total_loss to (n_batch_size * n_comp)
-
-            ## best_rep_per_sample = torch.argmin(total_loss_reshaped, dim=1).squeeze(-1)
-
-            ## Reshape z to (n_batch_size, n_comp, dim)[range(n_batch_size), best_rep_per_sample]
+            rep = z.view(n_batch_size, n_comp, dim)[range(n_batch_size), best_rep_per_sample]
 
             best_reps[i] = rep
+            ## Reshape z to (n_batch_size, n_comp, dim)[range(n_batch_size), best_rep_per_sample]
+
+            # best_reps[i] = rep
 
         return best_reps
 
