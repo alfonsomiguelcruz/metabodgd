@@ -48,8 +48,8 @@ def construct_training_dataframe(met_list_all, sample_list_all, cohorts):
 def combine_cohort_datasets(sample_type='Normal'):
     cohorts = {
         "BRCA1": None,
-        "ccRCC3": None,
-        "ccRCC4": None,
+        "CCRCC3": None,
+        "CCRCC4": None,
         "COAD": None,
         "GBM": None,
         "HurthleCC": None,
@@ -88,7 +88,7 @@ def create_dataloaders(cohorts, df, batch_size):
                         train_size=0.8,
                         random_state=100)
         # plot_counts[c] = len(_train)
-        print(f'{c}: {len(_train)}')
+        # print(f'{c}: {len(_train)}')
         train_dict[c] = df.loc[_train].to_numpy()
         val_dict[c]  = df.loc[_val].to_numpy()
 

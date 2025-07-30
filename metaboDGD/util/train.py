@@ -11,20 +11,7 @@ from scipy.optimize import linear_sum_assignment
 from metaboDGD.src.latent import RepresentationLayer
 
 
-def gmm_cluster_acc(rep, gmm, labels):
-    le = LabelEncoder()
-    true_labels = le.fit_transform(labels)
-
-    clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
-    pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
-
-    _cm  = confusion_matrix(true_labels, pred_labels)
-    idxs = linear_sum_assignment(np.max(_cm) - _cm)
-    cm   = _cm[:, idxs[1]]
-    
-    return cm, adjusted_rand_score(true_labels, pred_labels)
-
-
+## ARI
 # def gmm_cluster_acc(rep, gmm, labels):
 #     le = LabelEncoder()
 #     true_labels = le.fit_transform(labels)
@@ -32,14 +19,28 @@ def gmm_cluster_acc(rep, gmm, labels):
 #     clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
 #     pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
 
-#     cm = confusion_matrix(true_labels, pred_labels)
+#     _cm  = confusion_matrix(true_labels, pred_labels)
+#     idxs = linear_sum_assignment(np.max(_cm) - _cm)
+#     cm   = _cm[:, idxs[1]]
     
-#     idxs = linear_sum_assignment(-cm + np.max(cm))
-#     cm2 = cm[:, idxs[1]]
-#     print(cm)
-#     acc = np.trace(cm2) / np.sum(cm2)
+#     return cm, adjusted_rand_score(true_labels, pred_labels)
 
-#     return cm2, acc
+
+def gmm_cluster_acc(rep, gmm, labels):
+    le = LabelEncoder()
+    true_labels = le.fit_transform(labels)
+
+    clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
+    pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
+
+    cm = confusion_matrix(true_labels, pred_labels)
+    
+    idxs = linear_sum_assignment(-cm + np.max(cm))
+    cm2 = cm[:, idxs[1]]
+
+    acc = np.trace(cm2) / np.sum(cm2)
+
+    return cm2, acc
 
 
 def train_dgd(
@@ -48,7 +49,7 @@ def train_dgd(
     validation_loader,
     n_epochs=500,
     export_dir='./',
-    export_name='metaboDGD',
+    export_name='torch_outputs',
     lr_schedule_epochs=[0,300],
     lr_schedule=[[1e-4,1e-3,1e-2],[1e-4,1e-2,1e-2]],
     optim_betas=[0.5,0.7],
@@ -129,7 +130,7 @@ def train_dgd(
 
     cluster_accuracies = []
     best_gmm_cluster = 0
-    best_labels = None
+    dir_temp = export_dir + export_name + '/' + export_name
 
     for e in range(n_epochs):
         if e % 50 == 0:
@@ -215,6 +216,16 @@ def train_dgd(
         
         val_rep_optimizer.step()
 
+        # if best_gmm_cluster < acc and acc > 0.90:
+        #     best_gmm_cluster = acc
+        #     best_gmm_epoch = e
+        #     print(f'Cluster Accuracy: {acc}')
+
+        #     torch.save(dgd_model.dec.state_dict(), dir_temp+'_dec.pt')
+        #     torch.save(dgd_model.gmm.state_dict(), dir_temp+'_gmm.pt')
+        #     torch.save(train_rep.state_dict(), dir_temp+'_train_rep.pt')
+        #     torch.save(val_rep.state_dict(), dir_temp+'_val_rep.pt')
+
     history = pd.DataFrame({
         'train_loss': train_avg,
         'val_loss': val_avg,
@@ -229,17 +240,42 @@ def train_dgd(
     return dgd_model, train_rep, val_rep, history, best_labels
 
 
-def get_history_plot(history):
-    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(12,8))
-    plt.subplots_adjust(wspace=0.25, hspace=0.25)
+def get_history_plot(history, inc_gmm_acc=True):
+    if inc_gmm_acc:
+        fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(12,8))
+        plt.subplots_adjust(wspace=0.25, hspace=0.25)
 
-    for i,j in [(0,0), (0,1), (1,0), (1,1)]:
-        if i == 1 and j == 1:
-            ax[1][1].plot(history['epoch'], history['cluster_acc'])
-            ax[1][1].set_xlabel('Epoch')
-            ax[1][1].set_ylabel('Adjusted Rand Index')
-            ax[1][1].set_title('ARI Clustering Metric')
-        else:
+        for i,j in [(0,0), (0,1), (1,0), (1,1)]:
+            if i == 1 and j == 1:
+                ax[1][1].plot(history['epoch'], history['cluster_acc'])
+                ax[1][1].set_xlabel('Epoch')
+                ax[1][1].set_ylabel('Adjusted Rand Index')
+                ax[1][1].set_title('ARI Clustering Metric')
+            else:
+                if i == 0 and j == 0:
+                    train_lbl = 'train_loss'
+                    val_lbl = 'val_loss'
+                    title = 'Total Loss'
+                elif i == 0 and j == 1:
+                    train_lbl = 'train_recon_loss'
+                    val_lbl = 'val_recon_loss'
+                    title = 'Reconstruction Loss'
+                else:
+                    train_lbl = 'train_dist_loss'
+                    val_lbl = 'val_dist_loss'
+                    title = 'GMM Distribution Loss'
+                    ax[1][0].set_xlabel('Epoch')
+
+                ax[i][j].plot(history['epoch'], history[train_lbl], label='train')
+                ax[i][j].plot(history['epoch'], history[val_lbl], label='validation')
+                ax[i][j].set_ylabel('loss')
+                ax[i][j].set_title(title)
+                ax[i][j].legend()
+    else:
+        fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15,4))
+        plt.subplots_adjust(wspace=0.20, hspace=0.25)
+        
+        for i,j in [(0,0), (0,1), (0,2)]:
             if i == 0 and j == 0:
                 train_lbl = 'train_loss'
                 val_lbl = 'val_loss'
@@ -251,11 +287,12 @@ def get_history_plot(history):
             else:
                 train_lbl = 'train_dist_loss'
                 val_lbl = 'val_dist_loss'
-                title = 'GMM Distribution Loss'
-                ax[1][0].set_xlabel('Epoch')
+                title = 'Gaussian Mixture Model Loss'
+            
+            ax[j].set_xlabel('Epoch')
+            ax[j].plot(history['epoch'], history[train_lbl], label='Train')
+            ax[j].plot(history['epoch'], history[val_lbl], label='Validation')
+            ax[j].set_ylabel('Loss')
+            ax[j].set_title(title)
+            ax[j].legend()
 
-            ax[i][j].plot(history['epoch'], history[train_lbl], label='train')
-            ax[i][j].plot(history['epoch'], history[val_lbl], label='validation')
-            ax[i][j].set_ylabel('loss')
-            ax[i][j].set_title(title)
-            ax[i][j].legend()

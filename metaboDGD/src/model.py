@@ -17,7 +17,12 @@ class MetaboDGD():
         dec_output_prediction_type='mean',
         dec_output_activation_type='softplus',
         n_comp=8,
-        cm_type='diagonal'
+        cm_type='diagonal',
+        softball_radius=3,
+        softball_sharpness=5,
+        gaussian_mean=-6.0,
+        gaussian_stddev=0.01,
+        dirichlet_alpha=0.5,
     ):
         super(MetaboDGD, self).__init__()
 
@@ -31,7 +36,12 @@ class MetaboDGD():
         self.gmm = GaussianMixtureModel(
             latent_dim=latent_dim,
             n_comp=n_comp,
-            cm_type=cm_type
+            cm_type=cm_type,
+            softball_radius=softball_radius,
+            softball_sharpness=softball_sharpness,
+            gaussian_mean=gaussian_mean,
+            gaussian_stddev=gaussian_stddev,
+            dirichlet_alpha=dirichlet_alpha,
         )
     
 
@@ -146,7 +156,7 @@ class MetaboDGD():
         dim_op = self.gmm.dim
         n_comp_op = 1
         n_samples_op = len(data_loader.dataset)
-        n_epochs = 25
+        n_epochs = 10
         for e in range(0, n_epochs):
             optimizer.zero_grad()
             for x, i in data_loader:

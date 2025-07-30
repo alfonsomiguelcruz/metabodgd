@@ -8,39 +8,46 @@ class GaussianMixtureModel(nn.Module):
             self,
             latent_dim,
             n_comp,
-            cm_type='diagonal'
+            cm_type='diagonal',
+            softball_radius=5,
+            softball_sharpness=5,
+            gaussian_mean=-5.0,
+            gaussian_stddev=0.5,
+            dirichlet_alpha=11,
         ):
         super().__init__()
 
         self.dim = latent_dim
         self.n_comp = n_comp
         self.cm_type=cm_type
+        self.alpha = dirichlet_alpha
 
         self.means_prior = {
             'dist': SoftballPrior(
                 latent_dim=self.dim,
-                radius=5,
-                sharpness=5
+                radius=softball_radius,
+                sharpness=softball_sharpness
             )
         }
 
-        ## BEST PERFORMANCE (-5.0, 1.0)
+        ## BEST PERFORMANCE (-5.0, 1.0) / (-5.0, 0.5)
         self.log_var_prior = {
             'dist': GaussianPrior(
                 latent_dim=self.dim,
                 # mean=-2 * math.log(10),
                 # mean=-4.5,
-                mean=-5.0,
-                stddev=0.5
+                mean=gaussian_mean,
+                stddev=gaussian_stddev
             )
         }
 
         ## BEST PERFORMANCE (0.1)
         # self.logbeta.fill_(-2 * math.log(self.sd_init[0]))
         self.log_var  = nn.Parameter(
-                            torch.full(size=(self.n_comp, self.dim),
-                                    #    fill_value=(0.2 * self.means_prior['dist'].radius * (self.n_comp ** -1))),
-                                       fill_value=(0.2 * 0.125 * (self.n_comp ** -1))),
+                            self.log_var_prior['dist'].sample(n_sample=n_comp),
+                            # torch.full(size=(self.n_comp, self.dim),
+                            #         #    fill_value=(0.2 * self.means_prior['dist'].radius * (self.n_comp ** -1))),
+                            #            fill_value=(self.log_var_prior['dist'].mean)),
                                     #    fill_value=(math.log(2.0))),
                                     #    fill_value=(0.125)),
                                     #    fill_value=(0.1)),
@@ -85,12 +92,12 @@ class GaussianMixtureModel(nn.Module):
         p = 0.0
 
         ## Assume weights prior is Dirichlet (add alpha, constant)
-        alpha = 11
-        p = math.lgamma(self.n_comp * alpha) - \
-            self.n_comp * math.lgamma(alpha)
+        self.alpha = 11
+        p = math.lgamma(self.n_comp * self.alpha) - \
+            self.n_comp * math.lgamma(self.alpha)
         
-        if alpha != 1:
-            p += (alpha - 1.0) * (self.get_mixture_probs().log().sum())
+        if self.alpha != 1:
+            p += (self.alpha - 1.0) * (self.get_mixture_probs().log().sum())
         
 
         ## Assume means prior is Softball
