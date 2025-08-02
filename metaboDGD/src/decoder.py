@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as D
 
-class HurdleLogNormalLayer (nn.Module):
+class GaussianLayer (nn.Module):
     def __init__(
         self,
         output_dim,
@@ -63,7 +63,7 @@ class Decoder(nn.Module):
                 self.nn.append(nn.PReLU())
 
         # TODO Figure out loss function distribution for metabolite abundance
-        self.normal_layer = HurdleLogNormalLayer(
+        self.normal_layer = GaussianLayer(
             output_dim=output_layer_dim,
             output_prediction_type=output_prediction_type,
             output_activation_type=output_activation_type

@@ -13,7 +13,7 @@ class MetaboDGD():
     def __init__ (self,
         latent_dim=20,
         output_dim=1915,
-        dec_hidden_layers_dim=[475, 950, 1425],
+        dec_hidden_layers_dim=[500, 1500],
         dec_output_prediction_type='mean',
         dec_output_activation_type='softplus',
         n_comp=8,

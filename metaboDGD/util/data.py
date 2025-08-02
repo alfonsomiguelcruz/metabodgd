@@ -75,52 +75,34 @@ def combine_cohort_datasets(sample_type='Normal'):
     return df, cohorts
 
 
-def create_dataloaders(cohorts, df, batch_size):
-    train_dict = {}
-    val_dict  = {}
 
-    train_lbls = []
-    val_lbls  = []
-
-    for c in cohorts.keys():
-        # Get Sample IDs for training and testing
-        _train, _val = train_test_split(cohorts[c]['sample_list'],
-                        train_size=0.8,
-                        random_state=100)
-        # plot_counts[c] = len(_train)
-        # print(f'{c}: {len(_train)}')
-        train_dict[c] = df.loc[_train].to_numpy()
-        val_dict[c]  = df.loc[_val].to_numpy()
-
-        train_lbls += [c for i in range(len(_train))]
-        val_lbls  += [c for i in range(len(_val))]
-
-    train_df = np.vstack(list(train_dict.values()))
-    val_df  = np.vstack(list(val_dict.values()))
-
-    train_lbls = np.asarray(train_lbls, dtype=np.object_)
-    val_lbls = np.asarray(val_lbls, dtype=np.object_)
-
+def create_dataloaders(np_train_abun, np_train_lbls,
+                       np_validation_abun=None, np_validation_lbls=None,
+                       batch_size=32):
     train_dataset = MetaboliteDataset(
-        np_mat=train_df,
-        cohort_labels=train_lbls
-    )
-
-    val_dataset  = MetaboliteDataset(
-        np_mat=val_df,
-        cohort_labels=val_lbls
+        np_mat=np_train_abun,
+        cohort_labels=np_train_lbls
     )
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=False
+        shuffle=True
     )
 
-    val_loader  = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False
-    )
 
-    return train_loader, val_loader
+    if np_validation_abun and np_validation_lbls:
+        val_dataset  = MetaboliteDataset(
+            np_mat=np_validation_abun,
+            cohort_labels=np_validation_lbls
+        )
+
+        val_loader  = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=True
+        )
+
+        return train_loader, val_loader
+    else:
+        return train_loader
