@@ -11,22 +11,75 @@ from scipy.optimize import linear_sum_assignment
 from metaboDGD.src.latent import RepresentationLayer
 
 
-## ARI
-# def gmm_cluster_acc(rep, gmm, labels):
-#     le = LabelEncoder()
-#     true_labels = le.fit_transform(labels)
+def get_adjusted_rand_index(rep, gmm, labels):
+    """
+    Computes the GMM clustering quality using the
+    adjusted Rand index (ARI) metric. 
 
-#     clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
-#     pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
+    Parameters
+    ----------
+    rep : `RepresentationLayer`
+        The representations of the training data.
 
-#     _cm  = confusion_matrix(true_labels, pred_labels)
-#     idxs = linear_sum_assignment(np.max(_cm) - _cm)
-#     cm   = _cm[:, idxs[1]]
+    gmm : `GaussianMixtureModel`
+        The GMM being trained.
+
+    labels : `list`
+        A list of strings containing the cohorts the samples
+        originally belonged to.
+
+
+    Returns
+    -------
+    cm : `numpy.ndarray`
+        A confusion matrix between the true and predicted
+        labels by the GMM.
+
+    ARI : `float`
+        A float denoting the computed ARI metric.
+    """
     
-#     return cm, adjusted_rand_score(true_labels, pred_labels)
+    le = LabelEncoder()
+    true_labels = le.fit_transform(labels)
+
+    clustering  = torch.exp(gmm.get_log_prob_comp(rep.z.detach()))
+    pred_labels = torch.max(clustering, dim=-1).indices.cpu().detach()
+
+    _cm  = confusion_matrix(true_labels, pred_labels)
+    idxs = linear_sum_assignment(np.max(_cm) - _cm)
+    cm   = _cm[:, idxs[1]]
+    
+    return cm, adjusted_rand_score(true_labels, pred_labels)
 
 
-def gmm_cluster_acc(rep, gmm, labels):
+def get_cluster_accuracy(rep, gmm, labels):
+    """
+    Computes the GMM clustering quality using the
+    clustering accuracy. 
+
+    Parameters
+    ----------
+    rep : `RepresentationLayer`
+        The representations of the training data.
+
+    gmm : `GaussianMixtureModel`
+        The GMM being trained.
+
+    labels : `list`
+        A list of strings containing the cohorts the samples
+        originally belonged to.
+
+
+    Returns
+    -------
+    cm2 : `numpy.ndarray`
+        A confusion matrix between the true and predicted
+        labels by the GMM.
+
+    acc : `float`
+        A float denoting the computed clustering accuracy.
+    """
+        
     le = LabelEncoder()
     true_labels = le.fit_transform(labels)
 
@@ -56,6 +109,8 @@ def train_dgd(
     wd=1e-4,
     acc_save_threshold=0.5
 ):
+    # TODO: Documentation to follow...
+
     # Saving the model
     if export_name is not None:
         if not os.path.exists(export_dir+export_name):
@@ -194,7 +249,7 @@ def train_dgd(
             
         train_rep_optimizer.step()
 
-        cm2, acc = gmm_cluster_acc(train_rep, dgd_model.gmm, train_loader.dataset.get_labels())
+        cm2, acc = get_cluster_accuracy(train_rep, dgd_model.gmm, train_loader.dataset.get_labels())
         cluster_accuracies.append(acc)
         best_labels = cm2
 
@@ -224,10 +279,12 @@ def train_dgd(
             best_gmm_epoch = e
             print(f'Cluster Accuracy: {acc}')
 
-        #     torch.save(dgd_model.dec.state_dict(), dir_temp+'_dec.pt')
-        #     torch.save(dgd_model.gmm.state_dict(), dir_temp+'_gmm.pt')
-        #     torch.save(train_rep.state_dict(), dir_temp+'_train_rep.pt')
-        #     torch.save(val_rep.state_dict(), dir_temp+'_val_rep.pt')
+            # torch.save(dgd_model.dec.state_dict(), dir_temp+'_dec.pt')
+            # torch.save(dgd_model.gmm.state_dict(), dir_temp+'_gmm.pt')
+            # torch.save(train_rep.state_dict(), dir_temp+'_train_rep.pt')
+            
+            if validation_loader:
+                torch.save(val_rep.state_dict(), dir_temp+'_val_rep.pt')
 
     if validation_loader:
         history = pd.DataFrame({
@@ -251,10 +308,15 @@ def train_dgd(
             'epoch': np.arange(1, n_epochs+1),
         })
 
+        torch.save(dgd_model.dec.state_dict(), dir_temp+'_dec.pt')
+        torch.save(dgd_model.gmm.state_dict(), dir_temp+'_gmm.pt')
+        torch.save(train_rep.state_dict(), dir_temp+'_train_rep.pt')
+
         return dgd_model, train_rep, history, best_labels
 
 
 def get_history_plot(history, inc_gmm_acc=True, with_val_plot=True):
+
     if inc_gmm_acc:
         fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(16,4))
         plt.subplots_adjust(wspace=0.25, hspace=0.25)
@@ -289,10 +351,12 @@ def get_history_plot(history, inc_gmm_acc=True, with_val_plot=True):
 
                 if with_val_plot:
                     ax[j].plot(history['epoch'], history[val_lbl], label='validation') 
-                     
+
                 ax[j].set_ylabel('loss')                 
                 ax[j].set_title(title)
                 ax[j].legend()
+
+        plt.show()
 
     else:
         fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15,4))

@@ -112,10 +112,10 @@ class MetaboDGD():
 
 
 
-    def get_representations(self, df, df_lbls, n_samples):
+    def get_representations(self, np, np_lbls, n_samples):
         ds = MetaboliteDataset(
-            np_mat = df.to_numpy(),
-            cohort_labels=df_lbls
+            np_mat = np,
+            cohort_labels=np_lbls
         )
 
         data_loader = DataLoader(

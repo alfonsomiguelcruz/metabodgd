@@ -165,7 +165,6 @@ class Decoder(nn.Module):
     
     def forward(self, z):
         """
-        ##################################################
         Apply the activation layer to the previous output
         of the decoder.
 
@@ -187,6 +186,7 @@ class Decoder(nn.Module):
             z = self.nn[i](z)
 
         y = self.normal_layer(z)
+        
         return y
 
 
