@@ -1,0 +1,9 @@
+n_epochs: 200
+
+lr_schedule_epochs: null
+
+lr_schedule: [0.0004, 0.003, 0.02]
+
+optim_betas: [0.5, 0.7]
+
+wd: 0.0004

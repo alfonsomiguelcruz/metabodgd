@@ -1,3 +1,4 @@
+import pickle
 import pandas as pd
 import numpy  as np
 from torch.utils.data import DataLoader
@@ -218,3 +219,21 @@ def create_dataloaders(np_train_abun, np_train_lbls,
         return train_loader, val_loader
     else:
         return train_loader
+    
+
+def load_dataframe_and_cohort(dir,
+                              dataframe_fname,
+                              cohort_fname):
+    # Read the sample dataframe and convert to a numpy array
+    df = pd.read_csv(dir + dataframe_fname)
+    df.set_index('Unnamed: 0', inplace=True)
+    df.index.name = None
+    np_lbls = df.loc['cohort'].to_numpy()
+    np_log = df.T.drop(columns=['cohort']).astype('float64').to_numpy()
+
+    # Read the sample cohort dictionary
+    fn = open(dir + cohort_fname, 'rb')
+    cohorts = pickle.load(fn)
+    fn.close()
+
+    return np_lbls, np_log, cohorts
