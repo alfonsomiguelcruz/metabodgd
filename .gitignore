@@ -11,3 +11,4 @@ all_diagnostic_chemicals.tsv
 hyperparam_search.py
 torch_outputs/
 code_dump.ipynb
+sept_outputs/

@@ -129,10 +129,43 @@ def combine_cohort_datasets(sample_type='Normal'):
         "HurthleCC": None,
         "PDAC": None,
         "PRAD": None,
+        "feces_MTBLS6334": None,
+        "feces_MTBLS7866": None,
+        "plasma_MTBLS11094": None,
+        "plasma_MTBLS11746": None,
+        "plasma_MTBLS11656": None,
+        "plasma_MTBLS3305": None,
+        "plasma_MTBLS8390": None,
+        "plasma_MTBLS1183": None,
+        "plasma_MTBLS2262": None,
+        "plasma_MTBLS11996": None,
+        "saliva_MTBLS4569": None,
+        "saliva_MTBLS7807": None,
+        "saliva_MTBLS760": None,
+        "serum_MTBLS12539": None,
+        "serum_MTBLS12576": None,
+        "serum_MTBLS8644": None,
+        "serum_MTBLS7878": None,
+        "serum_MTBLS6982": None,
+        "serum_MTBLS2615": None,
+        "serum_MTBLS1839": None,
+        "serum_MTBLS12328": None,
+        "serum_MTBLS6039": None,
+        "serum_MTBLS3838": None,
+        "tissue_MTBLS1122": None,
     }
 
+    if type(sample_type) == list:
+        st_disease, st_tumor = sample_type
+    
     for c in cohorts.keys():
-        cohorts[c] = get_cohort_samples(c, sample_type)
+        if sample_type == 'Normal':
+            cohorts[c] = get_cohort_samples(c, sample_type)
+        elif any(bio in c for bio in ['feces', 'plasma', 'saliva', 'serum', 'tissue']):
+            cohorts[c] = get_cohort_samples(c, st_disease)
+        else:
+             cohorts[c] = get_cohort_samples(c, st_tumor)
+        
 
 
     met_union_set = set()
@@ -229,11 +262,61 @@ def load_dataframe_and_cohort(dir,
     df.set_index('Unnamed: 0', inplace=True)
     df.index.name = None
     np_lbls = df.loc['cohort'].to_numpy()
-    np_log = df.T.drop(columns=['cohort']).astype('float64').to_numpy()
+    np_raw_lbls = np.copy(np_lbls)
+    np_log = df.T.drop(columns=['cohort']).astype('float32').to_numpy()
+
+    np_lbls = np.where(np.isin(np_lbls,
+    [
+        'feces_MTBLS6334',
+        'feces_MTBLS7866'
+    ]),
+    'feces', np_lbls)
+
+    np_lbls = np.where(np.isin(np_lbls,
+        [
+            'plasma_MTBLS11094',
+            'plasma_MTBLS11746',
+            'plasma_MTBLS11656',
+            'plasma_MTBLS3305',
+            'plasma_MTBLS8390',
+            'plasma_MTBLS1183',
+            'plasma_MTBLS2262',
+            'plasma_MTBLS11996'
+        ]),
+        'plasma', np_lbls)
+
+    np_lbls = np.where(np.isin(np_lbls,
+        [
+            'saliva_MTBLS4569',
+            'saliva_MTBLS7807',
+            'saliva_MTBLS760'
+        ]),
+        'saliva', np_lbls)
+
+    np_lbls = np.where(np.isin(np_lbls,
+        [
+            'serum_MTBLS12539',
+            'serum_MTBLS12576',
+            'serum_MTBLS8644',
+            'serum_MTBLS7878',
+            'serum_MTBLS6982',
+            'serum_MTBLS2615',
+            'serum_MTBLS1839',
+            'serum_MTBLS12328',
+            'serum_MTBLS6039',
+            'serum_MTBLS3838'
+        ]),
+        'serum', np_lbls)
+    
+    np_lbls = np.where(np.isin(np_lbls,
+        [
+            'tissue_MTBLS1122',
+        ]),
+        'tissue', np_lbls)
 
     # Read the sample cohort dictionary
     fn = open(dir + cohort_fname, 'rb')
     cohorts = pickle.load(fn)
     fn.close()
 
-    return np_lbls, np_log, cohorts
+    return np_lbls, np_raw_lbls, np_log, cohorts

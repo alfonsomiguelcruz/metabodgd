@@ -120,7 +120,7 @@ class MetaboDGD():
 
         data_loader = DataLoader(
             dataset=ds,
-            batch_size=16,
+            batch_size=32,
             shuffle=False
         )
 

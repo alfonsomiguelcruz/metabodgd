@@ -158,7 +158,7 @@ class GaussianMixtureModel(nn.Module):
         p = 0.0
 
         # Assume weights prior is Dirichlet (add alpha, constant)
-        self.alpha = 11
+        # self.alpha = 11
         p = math.lgamma(self.n_comp * self.alpha) - \
             self.n_comp * math.lgamma(self.alpha)
         

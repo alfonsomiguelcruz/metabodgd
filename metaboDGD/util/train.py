@@ -189,8 +189,8 @@ def train_dgd(
     dir_temp = export_dir + export_name + '/' + export_name
 
     for e in range(n_epochs):
-        # if e % 50 == 0:
-        #     print(e)
+        if e % 50 == 0:
+            print(e)
         if lr_schedule_epochs is not None:
             if e in lr_schedule_epochs:
                 lr_idx = [x for x in range(len(lr_schedule_epochs)) \
