@@ -1,0 +1,27 @@
+
+
+latent_dim: 10
+
+output_dim: 10773
+
+dec_hidden_layers_dim: [1000, 5000]
+
+dec_output_prediction_type: 'mean'
+
+dec_output_activation_type: 'prelu'
+
+n_comp: 40
+
+cm_type: diagonal
+
+softball_radius: 5
+
+softball_sharpness: 10
+
+gaussian_mean: -8.5
+
+gaussian_stddev: 0.25
+
+dirichlet_alpha: 2.0
+
+abundance_gaussian_stddev: 1.0

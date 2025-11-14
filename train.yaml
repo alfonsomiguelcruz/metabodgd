@@ -1,0 +1,13 @@
+n_epochs: 500
+
+lr_schedule_epochs: null
+
+lr_schedule: [0.0001, 0.001, 0.01]
+
+optim_betas: [0.5, 0.8]
+
+wd: 0.0001
+
+acc_save_threshold: 0.5
+
+save_here: True
